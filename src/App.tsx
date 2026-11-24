@@ -1,13 +1,49 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, SkipForward, SkipBack, Volume2, Search, Heart, 
-  Home, Compass, Library, PlusCircle, LogIn, LogOut, Music2 
+  Home, Compass, Library, PlusCircle, LogIn, LogOut, Music2,
+  FileText, ArrowLeft
 } from 'lucide-react';
 import { api } from './services/api';
 import { Song, Artist, Album, Playlist, User } from './types';
 
+// Sample lyrics mapping for demo tracks
+const SAMPLE_LYRICS: Record<string, string[]> = {
+  'Electric Sunset': [
+    '[00:05.00] Neon lights flashing through the midnight sky',
+    '[00:12.00] Cruising down the digital boulevard',
+    '[00:20.00] Electric sunset fading into purple haze',
+    '[00:30.00] Feel the rhythm, feel every beat inside',
+    '[00:45.00] Synthesizers echo in the night',
+    '[01:00.00] We will never fade away',
+    '[01:15.00] In this cybernetic dream',
+  ],
+  'Cybernetic Highway': [
+    '[00:04.00] 100 miles an hour on a glass road',
+    '[00:15.00] Binary stars shining overhead',
+    '[00:25.00] No speed limits in cyberspace',
+    '[00:40.00] Accelerate into the future',
+    '[00:55.00] Just feel every beat of VYNZA',
+  ],
+  'Whispering Stars': [
+    '[00:06.00] Soft whispers falling from the galaxy',
+    '[00:18.00] Looking up into the endless dark',
+    '[00:28.00] You hold my hand and count the falling stars',
+    '[00:42.00] In this quiet dream, music is our guide',
+  ],
+  'Raindrops on Asphalt': [
+    '[00:05.00] Lo-fi crackle on a rainy evening',
+    '[00:15.00] A warm cup of coffee by the window',
+    '[00:25.00] City lights reflect on wet pavement',
+    '[00:38.00] Relax your mind, let the music flow',
+  ]
+};
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'artist'>('home');
+  const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null);
+  const [showLyricsModal, setShowLyricsModal] = useState(false);
+
   const [songs, setSongs] = useState<Song[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
@@ -33,7 +69,6 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState('User12345!');
   const [authError, setAuthError] = useState('');
 
-  // Initial Data Fetch
   useEffect(() => {
     loadCatalog();
     if (token) {
@@ -97,7 +132,6 @@ export default function App() {
     setPlaylists([]);
   };
 
-  // Playback handlers
   const handlePlaySong = (song: Song) => {
     if (currentSong?.id === song.id) {
       if (isPlaying) {
@@ -164,6 +198,11 @@ export default function App() {
     }
   };
 
+  const handleOpenArtist = (artist: Artist) => {
+    setSelectedArtist(artist);
+    setActiveTab('artist');
+  };
+
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
@@ -179,9 +218,18 @@ export default function App() {
       )
     : songs;
 
+  const artistSongs = selectedArtist
+    ? songs.filter((s) => s.artist_id === selectedArtist.id)
+    : [];
+
+  const currentLyrics = currentSong ? SAMPLE_LYRICS[currentSong.title] || [
+    '[00:00.00] Enjoy the instrumental rhythms of VYNZA',
+    '[00:20.00] Feel every beat flowing through your mind',
+    '[00:40.00] High fidelity audio streaming'
+  ] : [];
+
   return (
     <div className="flex h-screen bg-[#09090c] text-zinc-100 flex-col overflow-hidden font-sans">
-      {/* Hidden Audio Element */}
       <audio
         ref={audioRef}
         src={currentSong ? api.getStreamUrl(currentSong.id) : ''}
@@ -198,7 +246,6 @@ export default function App() {
         {/* Sidebar */}
         <aside className="w-64 bg-[#121217] flex flex-col justify-between border-r border-[#22222b] p-4">
           <div>
-            {/* Logo */}
             <div className="flex items-center space-x-3 px-2 py-4 mb-6">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-purple-600/30">
                 <Music2 className="w-5 h-5 text-white" />
@@ -209,7 +256,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Nav items */}
             <nav className="space-y-1">
               <button
                 onClick={() => setActiveTab('home')}
@@ -251,7 +297,6 @@ export default function App() {
               </button>
             </nav>
 
-            {/* Playlists section */}
             <div className="mt-8">
               <div className="flex items-center justify-between px-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
                 <span>Playlists</span>
@@ -276,7 +321,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* User profile / Login */}
           <div className="pt-4 border-t border-[#22222b]">
             {user ? (
               <div className="flex items-center justify-between">
@@ -313,7 +357,6 @@ export default function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 flex flex-col overflow-y-auto bg-gradient-to-b from-[#14141c] to-[#0a0a0d] p-8">
-          {/* Header search bar */}
           <div className="flex items-center justify-between pb-6">
             <div className="relative w-96">
               <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-3" />
@@ -326,69 +369,90 @@ export default function App() {
               />
             </div>
             <div className="flex items-center space-x-3">
-              <span className="text-xs font-medium text-purple-400 bg-purple-950/40 border border-purple-800/40 px-3 py-1 rounded-full">
-                Feel Every Beat
-              </span>
+              <button
+                onClick={() => setShowLyricsModal(true)}
+                className="flex items-center space-x-1.5 text-xs font-medium text-purple-300 bg-purple-900/40 hover:bg-purple-800/50 border border-purple-700/40 px-3 py-1.5 rounded-full transition"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Lyrics View</span>
+              </button>
             </div>
           </div>
 
-          {/* Hero Banner */}
-          {activeTab === 'home' && (
-            <div className="relative rounded-2xl overflow-hidden p-8 mb-8 bg-gradient-to-r from-purple-900/60 via-indigo-900/40 to-black border border-purple-800/30">
-              <div className="max-w-xl">
-                <span className="text-xs font-bold uppercase tracking-widest text-purple-400">Featured Album</span>
-                <h1 className="text-3xl font-extrabold text-white mt-2 mb-3">Neon Horizon</h1>
-                <p className="text-zinc-300 text-sm mb-6 leading-relaxed">
-                  Immerse yourself into high-octane synthwave aesthetics and electronic beats curated for the next generation of sound.
-                </p>
-                <button
-                  onClick={() => songs[0] && handlePlaySong(songs[0])}
-                  className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 font-semibold text-sm rounded-full flex items-center space-x-2 shadow-lg shadow-purple-600/40 transition"
-                >
-                  <Play className="w-4 h-4 fill-white" />
-                  <span>Play Featured Track</span>
-                </button>
+          {/* Artist Page View */}
+          {activeTab === 'artist' && selectedArtist ? (
+            <div>
+              <button
+                onClick={() => setActiveTab('home')}
+                className="flex items-center space-x-2 text-xs text-zinc-400 hover:text-white mb-6 transition"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Overview</span>
+              </button>
+
+              <div className="flex items-center space-x-6 mb-8 p-6 rounded-2xl bg-gradient-to-r from-purple-950/40 to-transparent border border-purple-800/30">
+                <img
+                  src={selectedArtist.image_url}
+                  alt={selectedArtist.name}
+                  className="w-32 h-32 rounded-full object-cover shadow-2xl border-2 border-purple-500"
+                />
+                <div>
+                  <span className="text-xs font-bold text-purple-400 uppercase tracking-widest">Verified Artist</span>
+                  <h1 className="text-4xl font-extrabold text-white mt-1 mb-2">{selectedArtist.name}</h1>
+                  <p className="text-sm text-zinc-300 max-w-xl">{selectedArtist.bio}</p>
+                </div>
+              </div>
+
+              <h3 className="text-xl font-bold mb-4">Top Discography Tracks</h3>
+              <div className="bg-[#13131a] rounded-xl border border-[#21212b] overflow-hidden">
+                <table className="w-full text-left text-sm text-zinc-400">
+                  <tbody className="divide-y divide-[#1e1e28]">
+                    {artistSongs.map((song, idx) => (
+                      <tr
+                        key={song.id}
+                        onClick={() => handlePlaySong(song)}
+                        className="hover:bg-[#1c1c27] transition group cursor-pointer"
+                      >
+                        <td className="py-3 px-4 w-12 text-center text-xs">{idx + 1}</td>
+                        <td className="py-3 px-4 flex items-center space-x-3">
+                          <img src={song.cover_url} alt="" className="w-10 h-10 rounded-md object-cover" />
+                          <div>
+                            <div className="text-white font-semibold">{song.title}</div>
+                            <div className="text-xs text-zinc-500">{song.genre}</div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-xs font-mono text-right">{song.play_count.toLocaleString()} plays</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          )}
-
-          {/* Tab Views */}
-          {activeTab === 'library' ? (
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Your Favorites</h2>
-              {favorites.length === 0 ? (
-                <p className="text-zinc-500 text-sm">No favorite tracks yet. Heart songs to add them here!</p>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {favorites.map((song) => (
-                    <div
-                      key={song.id}
-                      onClick={() => handlePlaySong(song)}
-                      className="group bg-[#16161f] p-3 rounded-xl border border-zinc-800/50 hover:border-purple-500/40 transition cursor-pointer"
-                    >
-                      <div className="relative rounded-lg overflow-hidden mb-3 aspect-square">
-                        <img src={song.cover_url} alt={song.title} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                        <button className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-purple-600 flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-lg shadow-purple-600/50 transition duration-200">
-                          <Play className="w-4 h-4 fill-white text-white ml-0.5" />
-                        </button>
-                      </div>
-                      <h4 className="font-semibold text-sm text-zinc-100 truncate">{song.title}</h4>
-                      <p className="text-xs text-zinc-400 truncate">{song.artist_name}</p>
-                    </div>
-                  ))}
+          ) : activeTab === 'home' ? (
+            <>
+              {/* Featured Banner */}
+              <div className="relative rounded-2xl overflow-hidden p-8 mb-8 bg-gradient-to-r from-purple-900/60 via-indigo-900/40 to-black border border-purple-800/30">
+                <div className="max-w-xl">
+                  <span className="text-xs font-bold uppercase tracking-widest text-purple-400">Featured Album</span>
+                  <h1 className="text-3xl font-extrabold text-white mt-2 mb-3">Neon Horizon</h1>
+                  <p className="text-zinc-300 text-sm mb-6 leading-relaxed">
+                    Immerse yourself into high-octane synthwave aesthetics and electronic beats curated for the next generation of sound.
+                  </p>
+                  <button
+                    onClick={() => songs[0] && handlePlaySong(songs[0])}
+                    className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 font-semibold text-sm rounded-full flex items-center space-x-2 shadow-lg shadow-purple-600/40 transition"
+                  >
+                    <Play className="w-4 h-4 fill-white" />
+                    <span>Play Featured Track</span>
+                  </button>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div>
+              </div>
+
               {/* Songs List */}
               <div className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white tracking-wide">
-                    {searchQuery ? 'Search Results' : 'Trending Now'}
-                  </h2>
-                </div>
-
+                <h2 className="text-xl font-bold text-white mb-4">
+                  {searchQuery ? 'Search Results' : 'Trending Now'}
+                </h2>
                 <div className="bg-[#13131a] rounded-xl border border-[#21212b] overflow-hidden">
                   <table className="w-full text-left text-sm text-zinc-400">
                     <thead className="bg-[#181822] text-xs uppercase tracking-wider text-zinc-500 border-b border-[#21212b]">
@@ -432,7 +496,16 @@ export default function App() {
                                 <div className={`truncate ${isCurrent ? 'text-purple-400' : 'text-white'}`}>
                                   {song.title}
                                 </div>
-                                <div className="text-xs text-zinc-500 truncate">{song.artist_name}</div>
+                                <div
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const art = artists.find((a) => a.id === song.artist_id);
+                                    if (art) handleOpenArtist(art);
+                                  }}
+                                  className="text-xs text-zinc-500 hover:text-purple-400 hover:underline cursor-pointer truncate"
+                                >
+                                  {song.artist_name}
+                                </div>
                               </div>
                             </td>
                             <td className="py-3 px-4 hidden md:table-cell text-zinc-400 text-xs truncate">
@@ -469,13 +542,17 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Artists & Albums showcase */}
+              {/* Popular Artists Clickable */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                 <div>
-                  <h3 className="text-lg font-bold mb-3 text-white">Popular Artists</h3>
+                  <h3 className="text-lg font-bold mb-3 text-white">Popular Artists (Click to View)</h3>
                   <div className="grid grid-cols-3 gap-3">
                     {artists.map((art) => (
-                      <div key={art.id} className="bg-[#14141c] p-3 rounded-xl border border-zinc-800/60 text-center">
+                      <div
+                        key={art.id}
+                        onClick={() => handleOpenArtist(art)}
+                        className="bg-[#14141c] hover:bg-[#1b1b26] p-3 rounded-xl border border-zinc-800/60 hover:border-purple-500/40 text-center cursor-pointer transition"
+                      >
                         <img src={art.image_url} alt={art.name} className="w-16 h-16 rounded-full mx-auto object-cover mb-2 border border-purple-500/30" />
                         <h5 className="text-xs font-bold text-white truncate">{art.name}</h5>
                       </div>
@@ -496,14 +573,42 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            </>
+          ) : null}
         </main>
       </div>
 
+      {/* Lyrics Modal */}
+      {showLyricsModal && currentSong && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-6">
+          <div className="bg-[#14141e] border border-zinc-800 rounded-3xl p-8 max-w-lg w-full shadow-2xl relative">
+            <button
+              onClick={() => setShowLyricsModal(false)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white text-lg font-bold"
+            >
+              ✕
+            </button>
+            <div className="flex items-center space-x-4 mb-6">
+              <img src={currentSong.cover_url} alt="" className="w-14 h-14 rounded-xl object-cover shadow-lg" />
+              <div>
+                <h3 className="text-lg font-bold text-white">{currentSong.title}</h3>
+                <p className="text-xs text-purple-400">{currentSong.artist_name}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 max-h-80 overflow-y-auto pr-2 text-center">
+              {currentLyrics.map((line, idx) => (
+                <p key={idx} className="text-base text-zinc-300 font-medium hover:text-purple-400 transition">
+                  {line.replace(/\[\d{2}:\d{2}\.\d{2}\]/, '').trim()}
+                </p>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Sticky Player Bar */}
       <footer className="h-22 bg-[#0e0e13] border-t border-[#1f1f2a] px-6 flex items-center justify-between z-40">
-        {/* Current track information */}
         <div className="flex items-center space-x-4 w-1/4 min-w-[200px]">
           {currentSong && (
             <>
@@ -527,7 +632,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Center playback controls */}
         <div className="flex flex-col items-center w-2/4 max-w-xl">
           <div className="flex items-center space-x-6 mb-1">
             <button onClick={handlePrev} className="text-zinc-400 hover:text-white transition">
@@ -544,7 +648,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* Progress bar */}
           <div className="w-full flex items-center space-x-3 text-[11px] text-zinc-500 font-mono">
             <span>{formatTime(currentTime)}</span>
             <div
@@ -566,22 +669,30 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right audio volume */}
-        <div className="flex items-center justify-end space-x-3 w-1/4">
-          <Volume2 className="w-4 h-4 text-zinc-400" />
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={volume}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value);
-              setVolume(val);
-              if (audioRef.current) audioRef.current.volume = val;
-            }}
-            className="w-24 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
-          />
+        <div className="flex items-center justify-end space-x-4 w-1/4">
+          <button
+            onClick={() => setShowLyricsModal(true)}
+            title="Show Lyrics"
+            className="p-1.5 text-zinc-400 hover:text-purple-400 hover:bg-zinc-800 rounded-lg transition"
+          >
+            <FileText className="w-4 h-4" />
+          </button>
+          <div className="flex items-center space-x-2">
+            <Volume2 className="w-4 h-4 text-zinc-400" />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={volume}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setVolume(val);
+                if (audioRef.current) audioRef.current.volume = val;
+              }}
+              className="w-20 h-1 bg-zinc-800 accent-purple-500 rounded-lg cursor-pointer"
+            />
+          </div>
         </div>
       </footer>
 

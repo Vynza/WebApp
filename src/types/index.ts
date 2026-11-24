@@ -18,6 +18,7 @@ export interface Song {
   audio_url: string;
   cover_url: string;
   play_count: number;
+  lyrics?: string;
 }
 
 export interface Artist {
